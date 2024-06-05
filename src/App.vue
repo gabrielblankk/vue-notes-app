@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 
 const showModal = ref(false)
 const newNote = ref('')
+const isEditing = ref()
 const notes = ref([])
 const textAreaBorderColor = ref('#333')
 const hasScrolled = ref(false)
@@ -37,24 +38,36 @@ function checkTextArea() {
 
 function openModal() {
   showModal.value = true
+
+  document.body.style.overflow = 'hidden'
 }
 
 function closeModal() {
   showModal.value = false
   newNote.value = ""
   textAreaBorderColor.value = '#333'
+  document.body.style.overflow = 'auto'
+  isEditing.value = '' 
 }
 
 function addNote() {
   if (!checkTextArea()) return 
+
+  if (!isEditing.value) {
+    notes.value.push({
+      id: crypto.randomUUID(),
+      text: newNote.value,
+      date: new Date().toLocaleDateString('pt-BR'),
+      color: `hsl(${Math.random() * 360}, 100%, 75%)`,
+      isHovered: false
+    })
+  } else {
+    const index = notes.value.findIndex(note => note.id === isEditing.value)
+
+    notes.value[index].text = newNote.value
+    notes.value[index].date = new Date().toLocaleDateString('pt-BR')
+  }
   
-  notes.value.push({
-    id: crypto.randomUUID(),
-    text: newNote.value,
-    date: new Date().toLocaleDateString('pt-BR'),
-    color: `hsl(${Math.random() * 360}, 100%, 75%)`,
-    isHovered: false
-  })
   closeModal()
   
   localStorage.setItem('notes', JSON.stringify(notes.value))
@@ -66,6 +79,13 @@ function deleteNote(id) {
     1
   )
   localStorage.setItem('notes', JSON.stringify(notes.value))
+}
+
+function editNote({text, id}) {
+  isEditing.value = id
+  newNote.value = text
+  
+  openModal()
 }
 </script>
 
@@ -79,10 +99,13 @@ function deleteNote(id) {
       <div v-if="showModal" class="modal">
         <div class="modal-header">
           <p class="new-note">New note</p>
+
           <Icon @click="closeModal" class="close" icon="material-symbols:cancel" width="30px" color="#333" />
         </div>
+
         <textarea v-model.trim="newNote" @input="checkTextArea" :style="{ borderColor: textAreaBorderColor }"></textarea>
-        <button @click="addNote" class="addNote">Add note</button>
+        
+        <button @click="addNote" class="addNote">{{ isEditing ? 'Edit' : 'Add note' }}</button>
       </div>
     </transition>
 
@@ -90,6 +113,7 @@ function deleteNote(id) {
     <header :class="{'header-shadow': hasScrolled}">
       <div class="spacer">
         <h1>Notes</h1>
+
         <Icon @click="openModal" class="newNote" icon="material-symbols:add-circle" width="60px" color="#333" />
       </div>
     </header>
@@ -104,9 +128,17 @@ function deleteNote(id) {
           :style="{ backgroundColor: note.color }">
   
           <p class="text">{{ note.text }}</p>
-          <div class="card-bottom"> 
+
+          <div class="card-bottom" :style="{backgroundColor: note.color}"> 
             <p class="date">{{ note.date }}</p>
-            <Icon v-if="note.isHovered" @click="deleteNote(note.id)" class="delete" icon="ic:outline-remove-circle" color="#333" width="20px"/>
+
+            <div class="icons">
+              <Icon v-if="note.isHovered" @click="editNote(note)" class="edit" icon="material-symbols:edit-square-rounded" color="#333" width="20px"/>
+
+              <Icon v-if="note.isHovered" @click="deleteNote(note.id)" class="delete" icon="ic:outline-remove-circle" color="#333" width="20px"/>
+            </div>
+
+            
           </div>
         </div>
       </transition-group>
@@ -115,11 +147,6 @@ function deleteNote(id) {
 </template>
 
 <style scoped>
-main {
-  height: 100vh;
-  width: 100vw;
-}
-
 header {
   background-color: #fff;
   width: 100%;
@@ -205,22 +232,32 @@ h1 {
 }
 
 .card-bottom {
+  position: sticky;
+  bottom: 0;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
 }
 
-.delete {
+.icons {
   margin: 12px;
+  gap: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete, .edit {
+  cursor: pointer;
   transition: 0.2s;
 }
 
-.delete:hover {
-  transform: scale(1.5);
+.delete:hover, .edit:hover {
+  transform: scale(1.3);
 }
 
-.delete:active {
+.delete:active, .edit:active {
   transform: scale(1);
 }
 
